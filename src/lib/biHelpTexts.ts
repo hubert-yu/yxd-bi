@@ -49,9 +49,10 @@ export const BI_HELP_BLOCKS: Record<BiHelpKey, BiHelpBlock> = {
   'global.costConfig': {
     title: '全局成本参数',
     paragraphs: [
-      '客服/操作成本：元/人天，用于把投入时长换算为金额。',
+      '客服/操作成本：与产品约定一致（如元/人天），演示页用于换算金额。',
       '原校对/原审核时长：min/单，作为「基准耗时」参与节省成本计算。',
-      '节省总成本（演示）≈ Σ[(基准时长 − 实际时长) 按角色折算 × 单价]。实际以后端接口与产品公式为准。'
+      '人效「平均投入成本」（若用四分项）：平均投入成本 = (校对总时长/校对总单量)×校对单价 + (审核总时长/审核总单量)×审核单价；单价与时长单位需一致（如时长为分钟则用元/分钟）。',
+      '节省总成本（演示）≈ Σ[(基准时长 − 实际时长) 按角色折算 × 单价]。正式接口以《接单 BI 看板完整方案设计》为准。'
     ]
   },
   'kpi.workOrderSubmit': {
@@ -85,14 +86,16 @@ export const BI_HELP_BLOCKS: Record<BiHelpKey, BiHelpBlock> = {
   'kpi.efficiencyDuration': {
     title: '平均投入时长（人效 KPI）',
     paragraphs: [
-      '公式：成员平均投入时长 = Σ(该成员在各单上的真实耗时) / 成员完成单量。',
+      '公式：平均投入时长 = (校对总时长 + 审核总时长) / 总单量；总单量 = 该成员在校对或审核埋点中出现过的「工作单 entrusted_info_id」去重个数。',
+      '后端宜同时返回：校对总时长、校对总单量（去重）、审核总时长、审核总单量（去重），单位与接口约定一致（分钟）。',
       '与处理单量、排行图同一套人效口径。'
     ]
   },
   'kpi.efficiencyLabor': {
     title: '平均人力成本（人效 KPI）',
     paragraphs: [
-      '由平均投入时长与成本参数换算（演示）；分布见「人员平均人力成本分布」图。'
+      '公式（前端）：平均投入成本 = (校对总时长/校对总单量)×校对单价 + (审核总时长/审核总单量)×审核单价；校对/审核总单量均为按工作单 id 去重后的单量。',
+      '演示页用全局成本参数换算；分母为 0 时前端需防除零。'
     ]
   },
   'volume.trend': {
@@ -134,14 +137,15 @@ export const BI_HELP_BLOCKS: Record<BiHelpKey, BiHelpBlock> = {
   'cost.avgDuration': {
     title: '平均处理时长',
     paragraphs: [
-      '公式：平均处理时长 = Σ totalDurationSeconds / 提交工作单数；校对/审核为分角色时长。',
+      '公式：平均处理时长 = Σ(单工作单总耗时) / 提交工作单数；单工作单总耗时为该校对+审核等角色耗时之和。',
+      '详细设计约定：接口侧「平均处理时长」对外统一为「分钟」展示与返回（内部可按秒聚合后再换算）。',
       '统计对象为区间内完成的工作单，来源按 recordType 过滤。'
     ]
   },
   'cost.inputHours': {
     title: '投入时间',
     paragraphs: [
-      '客服/操作投入总时长：由单工作单校对、审核耗时汇总后换算为小时展示。'
+      '客服/操作投入总时长：由单工作单校对、审核耗时汇总；可与接口一致用分钟或按页面再换算为小时展示。'
     ]
   },
   'cost.saveTrend': {
@@ -153,7 +157,8 @@ export const BI_HELP_BLOCKS: Record<BiHelpKey, BiHelpBlock> = {
   'cost.durationTrend': {
     title: '平均处理时长趋势',
     paragraphs: [
-      '按天展示处理总时长、校对时长、审核时长（分钟）；后端可按天返回，前端可再聚合。'
+      '按天展示处理总时长、校对时长、审核时长；与详细设计一致时，趋势点时长对外为「分钟」。',
+      '前端可按日/周/月再聚合。'
     ]
   },
   'cost.rework': {
@@ -166,19 +171,21 @@ export const BI_HELP_BLOCKS: Record<BiHelpKey, BiHelpBlock> = {
   'efficiency.rank': {
     title: '人员处理单量排行',
     paragraphs: [
-      '按真实处理人统计参与完成的工作单量并排序；组织筛选等价于限定 userIds。'
+      '按真实处理人统计参与完成的工作单量并排序；工作单量按 entrusted_info_id 去重。',
+      '组织筛选等价于限定 userIds。'
     ]
   },
   'efficiency.durationDist': {
     title: '人员平均投入时长分布',
     paragraphs: [
-      '公式同 KPI：SUM(成员耗时)/成员完成单量；按人展示分布。'
+      '每人：(校对总时长+审核总时长)/去重总单量（工作单 id）；四分项定义同 KPI 说明。',
+      '按人展示分布；时长单位与接口一致（分钟）。'
     ]
   },
   'efficiency.laborDist': {
     title: '人员平均人力成本分布',
     paragraphs: [
-      '在平均投入时长基础上乘以成本参数得到人均成本分布（演示）。'
+      '基于四分项与单价：(校对总时长/校对总单量)×校对单价 + (审核总时长/审核总单量)×审核单价（演示用页面参数）。'
     ]
   },
   'detail.conversion': {
@@ -202,7 +209,8 @@ export const BI_HELP_BLOCKS: Record<BiHelpKey, BiHelpBlock> = {
   'detail.efficiency': {
     title: '人效明细表',
     paragraphs: [
-      '按人员汇总：处理单量、平均投入时长、投入总时长、成本等；与上方人效图表同一口径。'
+      '按人员汇总：宜含校对总时长、校对总单量、审核总时长、审核总单量、去重总单量及派生平均投入时长；与 6.3.5 口径一致。',
+      '平均投入成本由前端用四分项与单价计算。'
     ]
   },
   'dialog.fieldDiff': {
