@@ -72,3 +72,8 @@ body {
 .tenant-select-popper.el-select-dropdown .el-select-dropdown__item.selected {
   color: #4f46ff !important;
 }
+
+/* BI 指标说明 Popover（teleport） */
+.bi-metric-help-popper.el-popper {
+  max-width: 420px;
+}

@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { Document, Download, Filter, Operation, Search, View } from '@element-plus/icons-vue';
@@ -8,6 +8,8 @@ import { getDynamicData } from './lib/dataGenerator';
 import { exportDashboardWorkbook } from './lib/exportWorkbook';
 import { TENANT_OPTIONS, type OrgTreeNode } from './lib/tenantProfiles';
 import EChart from './components/charts/EChart.vue';
+import BiMetricHelp from './components/BiMetricHelp.vue';
+import type { BiHelpKey } from './lib/biHelpTexts';
 
 type SourceFilter = 'all' | 'email' | 'file';
 type AnalysisView = 'workorder' | 'efficiency';
@@ -806,7 +808,8 @@ const kpis = computed(() => {
         trend: efficiencyProcessingCountMom.value.trend,
         mom: efficiencyProcessingCountMom.value.percentage,
         tab: 'cost' as TabName,
-        focus: 'processing-count' as EfficiencyFocus
+        focus: 'processing-count' as EfficiencyFocus,
+        helpKey: 'kpi.efficiencyCount' as BiHelpKey
       },
       {
         label: '平均投入时长',
@@ -814,7 +817,8 @@ const kpis = computed(() => {
         trend: avgEfficiencyInputMinutesMom.value.trend,
         mom: avgEfficiencyInputMinutesMom.value.percentage,
         tab: 'cost' as TabName,
-        focus: 'processing-duration' as EfficiencyFocus
+        focus: 'processing-duration' as EfficiencyFocus,
+        helpKey: 'kpi.efficiencyDuration' as BiHelpKey
       },
       {
         label: '平均人力成本',
@@ -822,7 +826,8 @@ const kpis = computed(() => {
         trend: avgEfficiencyLaborCostMom.value.trend,
         mom: avgEfficiencyLaborCostMom.value.percentage,
         tab: 'cost' as TabName,
-        focus: 'labor-cost' as EfficiencyFocus
+        focus: 'labor-cost' as EfficiencyFocus,
+        helpKey: 'kpi.efficiencyLabor' as BiHelpKey
       }
     ];
   }
@@ -839,21 +844,24 @@ const kpis = computed(() => {
         Number(metrics.value.work_order_submit_volume || 0),
         Number(previousMetrics.value.work_order_submit_volume || 0)
       ).percentage,
-      tab: 'conversion' as TabName
+      tab: 'conversion' as TabName,
+      helpKey: 'kpi.workOrderSubmit' as BiHelpKey
     },
     {
       label: '字段一次通过率',
       value: toPercent(fieldFirstPassRate.value),
       trend: fieldFirstPassRateMom.value.trend,
       mom: fieldFirstPassRateMom.value.percentage,
-      tab: 'quality' as TabName
+      tab: 'quality' as TabName,
+      helpKey: 'kpi.fieldFirstPass' as BiHelpKey
     },
     {
       label: '节省总成本',
       value: `¥${totalSavedCost.value.toFixed(1)}`,
       trend: savedCostMom.value.trend,
       mom: savedCostMom.value.percentage,
-      tab: 'cost' as TabName
+      tab: 'cost' as TabName,
+      helpKey: 'kpi.savedCost' as BiHelpKey
     }
   ];
 });
@@ -1927,6 +1935,15 @@ const detailTitleMap: Record<TabName, string> = {
 };
 
 const detailTitle = computed(() => (activeAnalysisView.value === 'efficiency' ? '人效明细表' : detailTitleMap[activeTab.value]));
+
+/** 底部明细表指标说明 key */
+const detailHelpKey = computed((): BiHelpKey => {
+  if (activeAnalysisView.value === 'efficiency') return 'detail.efficiency';
+  if (activeTab.value === 'conversion') return 'detail.conversion';
+  if (activeTab.value === 'quality') return 'detail.quality';
+  return 'detail.cost';
+});
+
 const detailSearchPlaceholder = computed(() => {
   if (activeAnalysisView.value === 'efficiency') return '搜索人员/业务部门';
   return activeTab.value === 'conversion' ? '搜索工单ID/来源ID' : '搜索工单ID/工作单ID';
@@ -1947,6 +1964,7 @@ const detailSearchPlaceholder = computed(() => {
               </el-icon>
             </div>
             <el-text tag="b" class="main-title">小沓-BI</el-text>
+            <BiMetricHelp help-key="global.filters" />
           </el-space>
           <div class="top-controls-row">
             <div class="top-controls">
@@ -2004,7 +2022,10 @@ const detailSearchPlaceholder = computed(() => {
               </template>
               <div class="cost-config-panel">
                 <div class="cost-config-head">
-                  <el-text tag="b">全局成本参数</el-text>
+                  <el-space :size="6" alignment="center">
+                    <el-text tag="b">全局成本参数</el-text>
+                    <BiMetricHelp help-key="global.costConfig" />
+                  </el-space>
                   <el-text type="info" size="small">影响节省成本、处理成本与人效口径</el-text>
                 </div>
                 <div class="cost-config-grid">
@@ -2075,7 +2096,10 @@ const detailSearchPlaceholder = computed(() => {
             <el-col v-for="item in kpis" :key="item.label" :span="kpiColSpan">
               <el-card shadow="never" class="kpi-card" :class="{ 'is-active': isKpiActive(item) }" @click="handleKpiClick(item)">
                 <el-row justify="space-between" align="middle" class="kpi-head">
-                  <el-text class="kpi-label">{{ item.label }}</el-text>
+                  <el-space :size="4" alignment="center" class="kpi-label-wrap">
+                    <el-text class="kpi-label">{{ item.label }}</el-text>
+                    <BiMetricHelp v-if="item.helpKey" :help-key="item.helpKey" />
+                  </el-space>
                   <el-tag :type="trendType(item.trend)" effect="light" round size="small" class="kpi-trend-tag" :class="`is-${item.trend}`">
                     {{ trendLabel(item.trend) }} {{ item.mom }}
                   </el-tag>
@@ -2095,7 +2119,10 @@ const detailSearchPlaceholder = computed(() => {
                   <el-col :span="16">
                     <el-card shadow="never" class="panel-card">
                       <el-row align="middle" class="panel-head conversion-head-grid">
-                        <el-text tag="b" class="head-title-left">业务单量</el-text>
+                        <el-space :size="4" alignment="center">
+                          <el-text tag="b" class="head-title-left">业务单量</el-text>
+                          <BiMetricHelp help-key="volume.trend" />
+                        </el-space>
                         <div class="chart-legend conversion-legend conversion-center-legend">
                           <span class="chart-legend-item">
                             <span class="chart-legend-dot legend-stage-source"></span>来源输入
@@ -2129,7 +2156,10 @@ const detailSearchPlaceholder = computed(() => {
                     <el-card shadow="never" class="panel-card">
                       <el-space direction="vertical" :size="12" fill class="miss-panel-stack">
                         <el-row justify="space-between" align="middle">
-                          <el-text tag="b">漏单深度分析</el-text>
+                          <el-space :size="4" alignment="center">
+                            <el-text tag="b">漏单深度分析</el-text>
+                            <BiMetricHelp help-key="volume.leak" />
+                          </el-space>
                         </el-row>
                         <div class="miss-summary-box">
                           <el-row justify="space-between" align="middle">
@@ -2167,7 +2197,10 @@ const detailSearchPlaceholder = computed(() => {
                   <el-col :span="16">
                     <el-card shadow="never" class="panel-card">
                       <el-row align="middle" class="panel-head quality-head-grid">
-                        <el-text tag="b" class="head-title-left">核心质量指标（工作单维度）</el-text>
+                        <el-space :size="4" alignment="center">
+                          <el-text tag="b" class="head-title-left">核心质量指标（工作单维度）</el-text>
+                          <BiMetricHelp help-key="quality.radar" />
+                        </el-space>
                         <div class="chart-legend quality-center-legend">
                           <span class="chart-legend-item">
                             <span class="chart-legend-dot legend-radar"></span>质量得分
@@ -2181,7 +2214,10 @@ const detailSearchPlaceholder = computed(() => {
                   <el-col :span="8">
                     <el-card shadow="never" class="panel-card">
                       <el-row justify="space-between" align="middle" class="panel-head panel-head-wrap">
-                        <el-text tag="b">字段识别准确率（字段维度）</el-text>
+                        <el-space :size="4" alignment="center">
+                          <el-text tag="b">字段识别准确率（字段维度）</el-text>
+                          <BiMetricHelp help-key="quality.fieldTable" />
+                        </el-space>
                         <el-text type="info" size="small">{{ fieldRecognitionHint }}</el-text>
                       </el-row>
                       <el-table
@@ -2215,7 +2251,10 @@ const detailSearchPlaceholder = computed(() => {
                       <el-card shadow="never" class="metric-card metric-card-basic metric-card-split">
                         <div class="metric-split">
                           <div class="metric-main">
-                            <el-text type="info" size="small">平均每工作单成本</el-text>
+                            <el-space :size="4" alignment="center">
+                              <el-text type="info" size="small">平均每工作单成本</el-text>
+                              <BiMetricHelp help-key="cost.avgCostPerOrder" />
+                            </el-space>
                             <el-text tag="b" class="metric-value">¥{{ avgTotalCostPerWorkOrder.toFixed(1) }}</el-text>
                           </div>
                           <div class="metric-side">
@@ -2229,7 +2268,10 @@ const detailSearchPlaceholder = computed(() => {
                       <el-card shadow="never" class="metric-card metric-card-basic metric-card-split">
                         <div class="metric-split">
                           <div class="metric-main processing-metric-main">
-                            <el-text type="info" size="small">平均处理时长</el-text>
+                            <el-space :size="4" alignment="center">
+                              <el-text type="info" size="small">平均处理时长</el-text>
+                              <BiMetricHelp help-key="cost.avgDuration" />
+                            </el-space>
                             <el-text tag="b" class="metric-value">{{ avgWorkOrderProcessingMinutes.toFixed(1) }}min</el-text>
                           </div>
                           <div class="metric-side processing-side">
@@ -2242,7 +2284,10 @@ const detailSearchPlaceholder = computed(() => {
                     <el-col :span="8">
                       <el-card shadow="never" class="metric-card metric-card-rate metric-card-rate-merged">
                         <div class="rate-card-stack">
-                          <el-text type="info" size="small" class="rate-card-title">投入时间</el-text>
+                          <el-space :size="4" alignment="center" class="rate-card-title">
+                            <el-text type="info" size="small">投入时间</el-text>
+                            <BiMetricHelp help-key="cost.inputHours" />
+                          </el-space>
                           <div class="rate-merged-row">
                             <div class="rate-merged-metric">
                               <span class="rate-main-title">客服：</span>
@@ -2270,7 +2315,10 @@ const detailSearchPlaceholder = computed(() => {
                     <el-col :span="8">
                       <el-card shadow="never" class="panel-card">
                         <el-row align="middle" class="panel-head cost-head-grid">
-                          <el-text tag="b" class="head-title-left">节省成本与单量趋势</el-text>
+                          <el-space :size="4" alignment="center">
+                            <el-text tag="b" class="head-title-left">节省成本与单量趋势</el-text>
+                            <BiMetricHelp help-key="cost.saveTrend" />
+                          </el-space>
                           <div class="chart-legend cost-center-legend">
                             <span class="chart-legend-item">
                               <span class="chart-legend-dot legend-cost"></span>节省成本
@@ -2287,7 +2335,10 @@ const detailSearchPlaceholder = computed(() => {
                     <el-col :span="8">
                       <el-card shadow="never" class="panel-card">
                         <el-row align="middle" class="panel-head efficiency-head-grid">
-                          <el-text tag="b" class="head-title-left">平均处理时长趋势（min）</el-text>
+                          <el-space :size="4" alignment="center">
+                            <el-text tag="b" class="head-title-left">平均处理时长趋势（min）</el-text>
+                            <BiMetricHelp help-key="cost.durationTrend" />
+                          </el-space>
                           <div class="chart-legend efficiency-center-legend">
                             <span class="chart-legend-item">
                               <span class="chart-legend-dot legend-total"></span>处理总时长
@@ -2307,7 +2358,10 @@ const detailSearchPlaceholder = computed(() => {
                     <el-col :span="8">
                       <el-card shadow="never" class="panel-card">
                         <el-row align="middle" class="panel-head efficiency-head-grid">
-                          <el-text tag="b" class="head-title-left">工作单提交与返工分布</el-text>
+                          <el-space :size="4" alignment="center">
+                            <el-text tag="b" class="head-title-left">工作单提交与返工分布</el-text>
+                            <BiMetricHelp help-key="cost.rework" />
+                          </el-space>
                           <div class="chart-legend efficiency-center-legend">
                             <span class="chart-legend-item">
                               <span class="chart-legend-dot legend-submit"></span>提交成功
@@ -2331,7 +2385,10 @@ const detailSearchPlaceholder = computed(() => {
                       <div class="section-anchor">
                         <el-card shadow="never" class="panel-card" :class="{ 'is-active': isEfficiencyPanelActive('processing-count') }">
                           <el-row align="middle" class="panel-head efficiency-head-grid">
-                            <el-text tag="b" class="head-title-left">人员处理单量排行</el-text>
+                            <el-space :size="4" alignment="center">
+                              <el-text tag="b" class="head-title-left">人员处理单量排行</el-text>
+                              <BiMetricHelp help-key="efficiency.rank" />
+                            </el-space>
                             <div class="chart-legend efficiency-center-legend">
                               <span class="chart-legend-item">
                                 <span class="chart-legend-dot legend-stage-create"></span>处理单量
@@ -2347,7 +2404,10 @@ const detailSearchPlaceholder = computed(() => {
                       <div class="section-anchor">
                         <el-card shadow="never" class="panel-card" :class="{ 'is-active': isEfficiencyPanelActive('processing-duration') }">
                           <el-row align="middle" class="panel-head efficiency-head-grid">
-                            <el-text tag="b" class="head-title-left">人员平均投入时长分布</el-text>
+                            <el-space :size="4" alignment="center">
+                              <el-text tag="b" class="head-title-left">人员平均投入时长分布</el-text>
+                              <BiMetricHelp help-key="efficiency.durationDist" />
+                            </el-space>
                             <div class="chart-legend efficiency-center-legend">
                               <span class="chart-legend-item">
                                 <span class="chart-legend-dot legend-total"></span>平均投入时长
@@ -2363,7 +2423,10 @@ const detailSearchPlaceholder = computed(() => {
                       <div class="section-anchor">
                         <el-card shadow="never" class="panel-card" :class="{ 'is-active': isEfficiencyPanelActive('labor-cost') }">
                           <el-row align="middle" class="panel-head efficiency-head-grid">
-                            <el-text tag="b" class="head-title-left">人员平均人力成本分布</el-text>
+                            <el-space :size="4" alignment="center">
+                              <el-text tag="b" class="head-title-left">人员平均人力成本分布</el-text>
+                              <BiMetricHelp help-key="efficiency.laborDist" />
+                            </el-space>
                             <div class="chart-legend efficiency-center-legend">
                               <span class="chart-legend-item">
                                 <span class="chart-legend-dot legend-person-cost"></span>平均人力成本
@@ -2389,9 +2452,10 @@ const detailSearchPlaceholder = computed(() => {
         <div>
         <el-card shadow="never" class="detail-card">
         <el-row justify="space-between" align="middle" class="detail-toolbar">
-          <el-space :size="8">
+          <el-space :size="8" alignment="center">
             <div class="title-line"></div>
             <el-text tag="b">{{ detailTitle }}</el-text>
+            <BiMetricHelp :help-key="detailHelpKey" />
           </el-space>
           <el-input v-model="currentKeyword" clearable :placeholder="detailSearchPlaceholder" class="search-input">
             <template #prefix>
@@ -2716,7 +2780,13 @@ const detailSearchPlaceholder = computed(() => {
       </el-table>
     </el-dialog>
 
-    <el-dialog v-model="qualityDialogVisible" title="字段识别及编辑情况" width="1120px" destroy-on-close>
+    <el-dialog v-model="qualityDialogVisible" width="1120px" destroy-on-close class="quality-field-dialog">
+      <template #header>
+        <div class="quality-dialog-header">
+          <span class="quality-dialog-title">字段识别及编辑情况</span>
+          <BiMetricHelp help-key="dialog.fieldDiff" />
+        </div>
+      </template>
       <el-text type="info" size="small">
         工单ID {{ selectedQualityRow?.orderId || '-' }} / 工作单ID {{ selectedQualityRow?.workOrderId || '-' }}
       </el-text>
@@ -4272,6 +4342,19 @@ const detailSearchPlaceholder = computed(() => {
 }
 
 .flow-table,
+.quality-dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.quality-dialog-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #303133;
+}
+
 .quality-detail-table {
   margin-top: 10px;
 }
